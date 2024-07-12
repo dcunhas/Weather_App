@@ -60,6 +60,8 @@ with ui.header() as header:
         with ui.row() as location_div:
             ui.label('Location: ')
             location = ui.label('Madison')
+            set_location_input = ui.input(label='Location')
+
 
 with ui.tabs() as tabs:
     ui.tab('Today')
@@ -69,7 +71,8 @@ with ui.tabs() as tabs:
 
 with ui.tab_panels(tabs, value='Today').classes('w-full'):
     with ui.tab_panel('Today'):
-        ui.label('Content of C')
+        with ui.card():
+            ui.label('Today\'s Weather')
     with ui.tab_panel('Hourly'):
         for i in range(24):
             HourlyWeather(i, 24)
