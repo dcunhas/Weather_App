@@ -1,2 +1,6 @@
 nicegui
 python-weather
+requests
+pyap
+usaddress
+pillow
