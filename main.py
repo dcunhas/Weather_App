@@ -1,4 +1,6 @@
-from nicegui import Tailwind, ui
+import math
+
+from nicegui import Tailwind, ui, app
 import asyncio
 import datetime
 import usaddress
@@ -10,7 +12,7 @@ class DarkButton(ui.button):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self._dark = ui.dark_mode() 
-        self._state = True
+        self._state = True #app.storage.browser.get('dark_mode', True)
         self.on('click', self.toggle)
         self._dark.enable() if self._state else self._dark.disable()
         self.props('round size="xs"')
@@ -18,6 +20,7 @@ class DarkButton(ui.button):
     def toggle(self) -> None:
         """Toggle the button state."""
         self._state = not self._state
+        #app.storage.browser['dark_mode'] = self._state
         self._dark.toggle()
         self.update()
 
@@ -67,6 +70,12 @@ class HourlyWeather(ui.row):
             self.feels_like_label.set_text(feels_like)
         self.__exit__()
 
+# @ui.page('/')
+# def weather_page():
+async def on_temp_scale_toggle():
+    await update_weather(set_location_input.value)
+    #app.storage.browser['temp_scale'] = temp_scale_selector.value
+
 with ui.footer(value=False) as footer:
     ui.label('Footer')
 
@@ -82,6 +91,11 @@ with ui.header() as header:
         with ui.link(target='/'):
             ui.label('Weather Stuff')
         ui.space()
+        # temp_scale_selector = ui.toggle(
+        #     {'F': u'\N{DEGREE SIGN}F', 'C': u'\N{DEGREE SIGN}C'}, value=app.storage.browser.get('temp_scale', 'F'),
+        temp_scale_selector = ui.toggle(
+            {'F': u'\N{DEGREE SIGN}F', 'C': u'\N{DEGREE SIGN}C'}, value='F',
+            on_change=on_temp_scale_toggle).props('rounded color="dark" toggle-color="positive"')
         DarkButton().classes('float-right')
     with ui.row().classes('w-full') as header_row_2:
         with ui.row() as location_div:
@@ -100,26 +114,41 @@ with ui.tabs() as tabs:
 with ui.tab_panels(tabs, value='Today').classes('w-full'):
     with ui.tab_panel('Today'):
         with ui.card():
-            today_location = ui.label('').classes('h3')
-            ui.label('Temperature')
-            today_temp = ui.label('')
-            ui.label('Humidity')
-            today_humidity = ui.label('')
-            ui.label('Precipitation')
-            today_precipitation = ui.label('')
-            ui.label('Feels Like')
-            today_feels_like = ui.label('')
+            today_location = ui.label('').classes('text-overline')
+            #ui.label('Temperature')
+            with ui.grid(columns=2):
+                today_image = ui.image('').props('fit=none')
+                today_temp = ui.label('').classes('text-h4 q-pa-md bg-secondary')
+                ui.label('Humidity')
+                today_humidity = ui.label('')
+                ui.label('Precipitation')
+                today_precipitation = ui.label('')
+                ui.label('Feels Like')
+                today_feels_like = ui.label('')
             #today_weather_map = ui.image('')
             today_weather_map = ui.html('')
-            
+
     with ui.tab_panel('Hourly'):
-        hourly_weather_cards = [HourlyWeather() for i in range(40)]
+        with ui.row() as hourly_list_header:
+        #     ui.label('Time')
+        #     ui.label('Temperature')
+        #     ui.label('Precipitation')
+        #     ui.label('Feels Like')
+        # hourly_weather_cards = [HourlyWeather() for i in range(40)]
+            hourly_weather_columns = [
+                {'name': 'day', 'label': 'Day', 'field': 'day'},
+                {'name': 'time', 'label': 'Time', 'field': 'time'},
+                {'name': 'temperature', 'label': 'Temperature', 'field': 'temperature'},
+                {'name': 'precipitation', 'label': 'Precipitation', 'field': 'precipitation'},
+                {'name': 'feels_like', 'label': 'Feels Like', 'field': 'feels_like'},
+            ]
+            hourly_weather_table = ui.table(columns=hourly_weather_columns, rows=[])
     with ui.tab_panel('Three Days'):
         with ui.row().classes('no-wrap justify-center') as multi_day_forcast:
             multi_day_weather_cards = [DailyWeather().classes('col') for i in range(5)]
         with ui.expansion().props('hide-expand-icon') as daily_info_expansion:
             ui.label('Weather Info')
-            
+
 with ui.dialog().props('persistent') as loading_dialog, ui.card():
     ui.label('Loading')
     ui.spinner(size='lg')
@@ -135,14 +164,18 @@ with ui.dialog() as general_error_dialog, ui.card():
 
 last_updated_weather_time = None
 last_weather_location = None
+last_weather_unit = temp_scale_selector.value
 async def update_weather(location):
     if not location.strip():
         return
     #Don't update if updated recently with same query
-    global last_updated_weather_time, last_weather_location
+    global last_updated_weather_time, last_weather_location, last_weather_unit
     update_time = datetime.datetime.now()
-    if (last_weather_location and (last_weather_location == location) and last_updated_weather_time and
-            (last_updated_weather_time - update_time) < datetime.timedelta(seconds=10)):
+    if (last_weather_location and
+            (last_weather_location == location) and
+            last_updated_weather_time and
+            (last_updated_weather_time - update_time) < datetime.timedelta(seconds=10) and
+            last_weather_unit == temp_scale_selector.value):
         return
     loading_dialog.open()
     (tagged_location, location_type) = usaddress.tag(location)
@@ -162,8 +195,8 @@ async def update_weather(location):
         return
     (lat, lon) = (open_weather_geocode['lat'], open_weather_geocode['lon'])
     try:
-        open_weather_current = get_weather.get_open_weather_current_weather(lat, lon)
-        open_weather_five_day = get_weather.get_open_weather_five_day_forcast(lat, lon)
+        open_weather_current = get_weather.get_open_weather_current_weather(lat, lon, units=get_weather.open_weather_units[temp_scale_selector.value])
+        open_weather_five_day = get_weather.get_open_weather_five_day_forcast(lat, lon, units=get_weather.open_weather_units[temp_scale_selector.value])
         #open_weather_map = get_weather.get_open_weather_map(lat, lon)
     except HTTPError as e:
         loading_dialog.close()
@@ -178,21 +211,35 @@ async def update_weather(location):
     loading_dialog.close()
     last_updated_weather_time = update_time
     last_weather_location = location
+    last_weather_unit = temp_scale_selector.value
     location_label.set_text(open_weather_geocode['name'])
     today_location.set_text(open_weather_geocode['name'])
-    today_temp.set_text(open_weather_current['main']['temp'])
-    today_humidity.set_text(open_weather_current['main']['humidity'])
-    today_feels_like.set_text(open_weather_current['main']['feels_like'])
+    print(open_weather_current)
+    print(open_weather_current["weather"])
+    today_image.set_source(f'https://openweathermap.org/img/wn/{open_weather_current["weather"][0]["icon"]}@2x.png')
+    today_temp.set_text(str(open_weather_current['main']['temp']) + u'\N{DEGREE SIGN}')
+    today_humidity.set_text(f"{open_weather_current['main']['humidity']}%")
+    today_feels_like.set_text(str(open_weather_current['main']['feels_like']) + u'\N{DEGREE SIGN}')
     if 'rain' in open_weather_current:
         today_precipitation.set_text(f'{open_weather_current["rain"].get("1h", "0")} mm')
     else:
         today_precipitation.set_text('0 mm')
     timezone = datetime.timezone(datetime.timedelta(seconds=open_weather_five_day['city']['timezone']))
-    for future_forcast, hourly_weather_card in zip(open_weather_five_day['list'], hourly_weather_cards):
-        hourly_weather_card.update(time=datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone),
-                                   temperature=future_forcast['main']['temp'],
-                                   feels_like=future_forcast['main']['feels_like'],
-                                   precipitation=future_forcast['pop'])
+    hourly_weather_rows = [{
+        'id': i,
+        'day': datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%a %b %d'),
+        'time':datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%I:%M%p'),
+        'temperature': str(future_forcast['main']['temp']) + u'\N{DEGREE SIGN}',
+        'feels_like': str(future_forcast['main']['feels_like']) + u'\N{DEGREE SIGN}',
+        'precipitation': str(math.ceil(future_forcast['pop'] * 100)) + '%'}
+       for i, future_forcast in zip(range(len(open_weather_five_day['list'])), open_weather_five_day['list'])]
+    hourly_weather_table.clear()
+    hourly_weather_table.update_rows(hourly_weather_rows)
+    # for future_forcast, hourly_weather_card in zip(open_weather_five_day['list'], hourly_weather_cards):
+    #     hourly_weather_card.update(time=datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%I:%M%p %a %b %d'),
+    #                                temperature=future_forcast['main']['temp'],
+    #                                feels_like=future_forcast['main']['feels_like'],
+    #                                precipitation=future_forcast['pop'])
     today_weather_map.set_content(mapping.map_iframe(lat, lon))
     #today_weather_map.set_source(open_weather_map)
     # for (daily_weather, daily_weather_card) in zip(new_weather.daily_forecasts, multi_day_weather_cards):
@@ -208,5 +255,5 @@ async def update_weather(location):
 #    pass
 
 if __name__ in {"__main__", "__mp_main__"}:
-    ui.run()
+    ui.run(storage_secret='0')
 

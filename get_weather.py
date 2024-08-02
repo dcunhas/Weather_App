@@ -8,7 +8,7 @@ from PIL import Image
 from io import BytesIO
 
 open_weather_api_key = os.environ['OPEN_WEATHER_API_KEY']
-
+open_weather_units = {'F': 'imperial', 'C': 'metric', 'K': 'standard'}
 
 async def get_weather(location):
     # declare the client. the measuring unit used defaults to the metric system (celcius, km/h, etc.)
