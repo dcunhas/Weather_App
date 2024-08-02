@@ -1,11 +1,11 @@
 from nicegui import Tailwind, ui
-import get_weather
 import asyncio
 import datetime
 import usaddress
 from requests import HTTPError
 
-
+import get_weather
+import mapping
 class DarkButton(ui.button):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -109,7 +109,8 @@ with ui.tab_panels(tabs, value='Today').classes('w-full'):
             today_precipitation = ui.label('')
             ui.label('Feels Like')
             today_feels_like = ui.label('')
-            today_weather_map = ui.image('')
+            #today_weather_map = ui.image('')
+            today_weather_map = ui.html('')
             
     with ui.tab_panel('Hourly'):
         hourly_weather_cards = [HourlyWeather() for i in range(40)]
@@ -163,7 +164,7 @@ async def update_weather(location):
     try:
         open_weather_current = get_weather.get_open_weather_current_weather(lat, lon)
         open_weather_five_day = get_weather.get_open_weather_five_day_forcast(lat, lon)
-        open_weather_map = get_weather.get_open_weather_map(lat, lon)
+        #open_weather_map = get_weather.get_open_weather_map(lat, lon)
     except HTTPError as e:
         loading_dialog.close()
         request_error_dialog.open()
@@ -192,10 +193,10 @@ async def update_weather(location):
                                    temperature=future_forcast['main']['temp'],
                                    feels_like=future_forcast['main']['feels_like'],
                                    precipitation=future_forcast['pop'])
-    today_weather_map.set_source(open_weather_map)
+    today_weather_map.set_content(mapping.map_iframe(lat, lon))
+    #today_weather_map.set_source(open_weather_map)
     # for (daily_weather, daily_weather_card) in zip(new_weather.daily_forecasts, multi_day_weather_cards):
     #     daily_weather_card.update(date=daily_weather.date, high=daily_weather.highest_temperature, low=daily_weather.lowest_temperature)
-    
 
 
 

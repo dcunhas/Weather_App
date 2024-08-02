@@ -4,3 +4,4 @@ requests
 pyap
 usaddress
 pillow
+folium
