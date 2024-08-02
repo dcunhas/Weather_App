@@ -113,19 +113,26 @@ with ui.tabs() as tabs:
 
 with ui.tab_panels(tabs, value='Today').classes('w-full'):
     with ui.tab_panel('Today'):
-        with ui.card():
-            today_location = ui.label('').classes('text-overline')
-            #ui.label('Temperature')
-            with ui.grid(columns=2):
-                today_image = ui.image('').props('fit=none')
-                today_temp = ui.label('').classes('text-h4 q-pa-md bg-secondary')
-                ui.label('Humidity')
-                today_humidity = ui.label('')
-                ui.label('Precipitation')
-                today_precipitation = ui.label('')
-                ui.label('Feels Like')
-                today_feels_like = ui.label('')
-            #today_weather_map = ui.image('')
+        with ui.grid(columns='1fr 2fr'):
+            with ui.card().classes('bg-info'):
+                today_location = ui.label('').classes('text-overline')
+                with ui.grid(columns='25% 75%').style('width: 100%;'):
+                    today_image = ui.image('')
+                    today_temp = ui.label('').classes('text-h4 q-pa-sm text-accent').style('width: max-content;')
+                with ui.column().classes('divide-y full-width'):
+                    with ui.row().classes(' full-width'):
+                        ui.label('Humidity')
+                        ui.space()
+                        today_humidity = ui.label('')
+                    with ui.row().classes(' full-width'):
+                        ui.label('Precipitation')
+                        ui.space()
+                        today_precipitation = ui.label('')
+                    with ui.row().classes(' full-width'):
+                        ui.label('Feels Like')
+                        ui.space()
+                        today_feels_like = ui.label('')
+                    #today_weather_map = ui.image('')
             today_weather_map = ui.html('')
 
     with ui.tab_panel('Hourly'):
@@ -138,11 +145,17 @@ with ui.tab_panels(tabs, value='Today').classes('w-full'):
             hourly_weather_columns = [
                 {'name': 'day', 'label': 'Day', 'field': 'day'},
                 {'name': 'time', 'label': 'Time', 'field': 'time'},
+                {'name': 'weather_icon', 'label': 'Weather', 'field': 'weather_icon'},
                 {'name': 'temperature', 'label': 'Temperature', 'field': 'temperature'},
                 {'name': 'precipitation', 'label': 'Precipitation', 'field': 'precipitation'},
                 {'name': 'feels_like', 'label': 'Feels Like', 'field': 'feels_like'},
             ]
             hourly_weather_table = ui.table(columns=hourly_weather_columns, rows=[])
+            hourly_weather_table.add_slot('weather_icon', r'''
+                <div :props="props">
+                    <img src={{ props.value }} >
+                </div>
+            ''')
     with ui.tab_panel('Three Days'):
         with ui.row().classes('no-wrap justify-center') as multi_day_forcast:
             multi_day_weather_cards = [DailyWeather().classes('col') for i in range(5)]
@@ -217,7 +230,7 @@ async def update_weather(location):
     print(open_weather_current)
     print(open_weather_current["weather"])
     today_image.set_source(f'https://openweathermap.org/img/wn/{open_weather_current["weather"][0]["icon"]}@2x.png')
-    today_temp.set_text(str(open_weather_current['main']['temp']) + u'\N{DEGREE SIGN}')
+    today_temp.set_text(str(round(open_weather_current['main']['temp'])) + u'\N{DEGREE SIGN}')
     today_humidity.set_text(f"{open_weather_current['main']['humidity']}%")
     today_feels_like.set_text(str(open_weather_current['main']['feels_like']) + u'\N{DEGREE SIGN}')
     if 'rain' in open_weather_current:
@@ -231,10 +244,19 @@ async def update_weather(location):
         'time':datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%I:%M%p'),
         'temperature': str(future_forcast['main']['temp']) + u'\N{DEGREE SIGN}',
         'feels_like': str(future_forcast['main']['feels_like']) + u'\N{DEGREE SIGN}',
-        'precipitation': str(math.ceil(future_forcast['pop'] * 100)) + '%'}
+        'precipitation': str(round(future_forcast['pop'] * 100)) + '%',
+        'weather_icon': f'https://openweathermap.org/img/wn/{future_forcast["weather"][0]["icon"]}.png'
+    }
        for i, future_forcast in zip(range(len(open_weather_five_day['list'])), open_weather_five_day['list'])]
     hourly_weather_table.clear()
     hourly_weather_table.update_rows(hourly_weather_rows)
+    hourly_weather_table.add_slot('icon', r'''
+                    <q-td key="weather_icon" :props="props">
+                        <q-avatar>
+                            <img :src={{ props.row.weather_icon }}>
+                        <q-avatar>
+                    </q-td>
+                ''')
     # for future_forcast, hourly_weather_card in zip(open_weather_five_day['list'], hourly_weather_cards):
     #     hourly_weather_card.update(time=datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%I:%M%p %a %b %d'),
     #                                temperature=future_forcast['main']['temp'],
