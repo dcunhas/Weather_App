@@ -1,5 +1,8 @@
 import python_weather
 import requests
+import requests_cache
+from retry_requests import retry
+import openmeteo_requests
 import asyncio
 import os
 import json
@@ -29,7 +32,7 @@ def get_open_weather_geocode(tagged_location):
         return result.json()
     elif 'PlaceName' in tagged_location:
         result = requests.get('http://api.openweathermap.org/geo/1.0/direct', {
-            'q': f'{tagged_location["PlaceName"]},{tagged_location.get("StateName", "")},{"US"}',
+            'q': f'{tagged_location["PlaceName"]},{tagged_location.get("StateName", "")},{tagged_location.get("CountryName", "US")}',
             'appid': open_weather_api_key,
             'limit': 1
         }, timeout=3)
@@ -99,3 +102,25 @@ def get_open_weather_map(lat, lon, cloud_layer=True,
 
     map_image = Image.open(BytesIO(result.content))
     return map_image
+
+#Based on https://www.freecodecamp.org/news/how-to-get-location-information-of-ip-address-using-python/
+def get_ip():
+    response = requests.get('https://api64.ipify.org?format=json').json()
+    return response["ip"]
+
+def get_location():
+    ip_address = get_ip()
+    response = requests.get(f'https://ipapi.co/{ip_address}/json/').json()
+    location_data = {
+        "ip": ip_address,
+        "city": response.get("city"),
+        "region": response.get("region"),
+        "country": response.get("country_name")
+    }
+    return location_data
+
+
+def get_openmeteo_weather(lat, lon):
+    cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
+    retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
+    openmeteo = openmeteo_requests.Client(session=retry_session)

@@ -70,11 +70,47 @@ class HourlyWeather(ui.row):
             self.feels_like_label.set_text(feels_like)
         self.__exit__()
 
+#Based on https://www.reddit.com/r/nicegui/comments/145d6z6/how_to_read_the_users_geolocation/
+async def get_browser_location():
+    response = await ui.run_javascript(''' 
+        return await new Promise(
+            (resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error('Geolocation is not supported by your browser')); 
+                } 
+                else {
+                    navigator.geolocation.getCurrentPosition( (position) => {
+                        resolve({
+                            latitude: position.coords.latitude, 
+                            longitude: position.coords.longitude, 
+                        }); 
+                    }, () => {
+                        reject(new Error('Unable to retrieve your location')); 
+                    }); 
+                }
+            }); 
+      ''', timeout=5.0)
+    return (response["latitude"], response["longitude"])
+
+async def on_get_browser_location():
+    try:
+        (lat, lon) = await get_browser_location()
+    except Exception as e:
+        print(e)
+        ui.notify('Could not get location')
+        return
+    await update_weather(lat_lon=(lat, lon))
 # @ui.page('/')
 # def weather_page():
 async def on_temp_scale_toggle():
     await update_weather(set_location_input.value)
     #app.storage.browser['temp_scale'] = temp_scale_selector.value
+
+async def weather_from_rough_location():
+    rough_ip_location = get_weather.get_location()
+    print(rough_ip_location)
+    await update_weather(place_name=rough_ip_location['city'], state_name=rough_ip_location['region'],
+                         country_name=['country_name'])
 
 with ui.footer(value=False) as footer:
     ui.label('Footer')
@@ -103,6 +139,7 @@ with ui.header() as header:
             location_label = ui.label('')
             set_location_input = ui.input(label='Location').on(
             'keydown.enter', lambda e: update_weather(e.sender.value))#.on('blur', lambda e: update_weather(e.sender.value))
+            ui.button('Current Location', on_click=on_get_browser_location)
 
 
 with ui.tabs() as tabs:
@@ -178,35 +215,46 @@ with ui.dialog() as general_error_dialog, ui.card():
 last_updated_weather_time = None
 last_weather_location = None
 last_weather_unit = temp_scale_selector.value
-async def update_weather(location):
-    if not location.strip():
+async def update_weather(location_string='', place_name='', state_name='', country_name='', zip_code='', lat_lon=None):
+    if not (location_string.strip() or place_name or state_name or country_name or zip_code or lat_lon):
         return
     #Don't update if updated recently with same query
     global last_updated_weather_time, last_weather_location, last_weather_unit
     update_time = datetime.datetime.now()
     if (last_weather_location and
-            (last_weather_location == location) and
+            (last_weather_location == location_string) and
             last_updated_weather_time and
             (last_updated_weather_time - update_time) < datetime.timedelta(seconds=10) and
             last_weather_unit == temp_scale_selector.value):
         return
     loading_dialog.open()
-    (tagged_location, location_type) = usaddress.tag(location)
-    try:
-        open_weather_geocode = get_weather.get_open_weather_geocode(tagged_location)
-    except ValueError as e:
-        loading_dialog.close()
-        bad_location_dialog.open()
-        return
-    except HTTPError as e:
-        loading_dialog.close()
-        request_error_dialog.open()
-        return
-    except Exception:
-        loading_dialog.close()
-        general_error_dialog.open()
-        return
-    (lat, lon) = (open_weather_geocode['lat'], open_weather_geocode['lon'])
+    if lat_lon:
+        (lat, lon) = lat_lon
+    else:
+        (tagged_location, location_type) = usaddress.tag(location_string)
+        if place_name:
+            tagged_location['PlaceName'] = place_name
+        if state_name:
+            tagged_location['StateName'] = state_name
+        if country_name:
+            tagged_location['CountryName'] = country_name
+        if zip_code:
+            tagged_location['ZipCode'] = zip_code
+        try:
+            open_weather_geocode = get_weather.get_open_weather_geocode(tagged_location)
+        except ValueError as e:
+            loading_dialog.close()
+            bad_location_dialog.open()
+            return
+        except HTTPError as e:
+            loading_dialog.close()
+            request_error_dialog.open()
+            return
+        except Exception:
+            loading_dialog.close()
+            general_error_dialog.open()
+            return
+        (lat, lon) = (open_weather_geocode['lat'], open_weather_geocode['lon'])
     try:
         open_weather_current = get_weather.get_open_weather_current_weather(lat, lon, units=get_weather.open_weather_units[temp_scale_selector.value])
         open_weather_five_day = get_weather.get_open_weather_five_day_forcast(lat, lon, units=get_weather.open_weather_units[temp_scale_selector.value])
@@ -220,19 +268,19 @@ async def update_weather(location):
         general_error_dialog.open()
         return
 
-    new_weather = await get_weather.get_weather(location)
+    #new_weather = await get_weather.get_weather(location_string)
     loading_dialog.close()
     last_updated_weather_time = update_time
-    last_weather_location = location
+    last_weather_location = location_string
     last_weather_unit = temp_scale_selector.value
     location_label.set_text(open_weather_geocode['name'])
     today_location.set_text(open_weather_geocode['name'])
     print(open_weather_current)
-    print(open_weather_current["weather"])
+    print(open_weather_five_day)
     today_image.set_source(f'https://openweathermap.org/img/wn/{open_weather_current["weather"][0]["icon"]}@2x.png')
-    today_temp.set_text(str(round(open_weather_current['main']['temp'])) + u'\N{DEGREE SIGN}')
-    today_humidity.set_text(f"{open_weather_current['main']['humidity']}%")
-    today_feels_like.set_text(str(open_weather_current['main']['feels_like']) + u'\N{DEGREE SIGN}')
+    today_temp.set_text(str(round(open_weather_current['main'].get('temp', -100))) + u'\N{DEGREE SIGN}')
+    today_humidity.set_text(f"{open_weather_current['main'].get('humidity', 'NaN')}%")
+    today_feels_like.set_text(str(open_weather_current['main'].get('feels_like', 'NaN')) + u'\N{DEGREE SIGN}')
     if 'rain' in open_weather_current:
         today_precipitation.set_text(f'{open_weather_current["rain"].get("1h", "0")} mm')
     else:
@@ -240,14 +288,14 @@ async def update_weather(location):
     timezone = datetime.timezone(datetime.timedelta(seconds=open_weather_five_day['city']['timezone']))
     hourly_weather_rows = [{
         'id': i,
-        'day': datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%a %b %d'),
-        'time':datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%I:%M%p'),
-        'temperature': str(future_forcast['main']['temp']) + u'\N{DEGREE SIGN}',
-        'feels_like': str(future_forcast['main']['feels_like']) + u'\N{DEGREE SIGN}',
-        'precipitation': str(round(future_forcast['pop'] * 100)) + '%',
+        'day': datetime.datetime.fromtimestamp(future_forcast.get('dt', ''), tz=timezone).strftime('%a %b %d'),
+        'time':datetime.datetime.fromtimestamp(future_forcast.get('dt', ''), tz=timezone).strftime('%I:%M%p'),
+        'temperature': str(future_forcast['main'].get('temp', 'NaN')) + u'\N{DEGREE SIGN}',
+        'feels_like': str(future_forcast['main'].get('feels_like', 'NaN')) + u'\N{DEGREE SIGN}',
+        'precipitation': str(round(future_forcast.get('pop', 0) * 100)) + '%',
         'weather_icon': f'https://openweathermap.org/img/wn/{future_forcast["weather"][0]["icon"]}.png'
     }
-       for i, future_forcast in zip(range(len(open_weather_five_day['list'])), open_weather_five_day['list'])]
+       for i, future_forcast in zip_code(range(len(open_weather_five_day['list'])), open_weather_five_day['list'])]
     hourly_weather_table.clear()
     hourly_weather_table.update_rows(hourly_weather_rows)
     hourly_weather_table.add_slot('icon', r'''
@@ -257,6 +305,7 @@ async def update_weather(location):
                         <q-avatar>
                     </q-td>
                 ''')
+
     # for future_forcast, hourly_weather_card in zip(open_weather_five_day['list'], hourly_weather_cards):
     #     hourly_weather_card.update(time=datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%I:%M%p %a %b %d'),
     #                                temperature=future_forcast['main']['temp'],
@@ -269,7 +318,6 @@ async def update_weather(location):
 
 
 
-
 # with ui.table(title='Ten Day Forcast',
 #               columns=[{'name': 'day', 'label': '', 'field': 'day'},
 #                        {'name': 'weather', 'label': '', 'field': 'weather'}],
@@ -278,4 +326,8 @@ async def update_weather(location):
 
 if __name__ in {"__main__", "__mp_main__"}:
     ui.run(storage_secret='0')
+    asyncio.run(weather_from_rough_location())
+
+
+
 

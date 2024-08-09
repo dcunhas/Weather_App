@@ -1,7 +1,10 @@
 nicegui
 python-weather
 requests
+requests-cache
+retry-requests
 pyap
 usaddress
 pillow
 folium
+openmeteo_requests
