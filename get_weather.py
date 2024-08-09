@@ -45,6 +45,14 @@ def get_open_weather_geocode(tagged_location):
       raise ValueError('Missing required fields in tagged_location')
 
 
+def get_open_weather_reverse_geocode(lat, lon):
+    result = requests.get('http://api.openweathermap.org/geo/1.0/zip', {
+        'lat': lat,
+        'lon': lon,
+        'appid': open_weather_api_key,
+        'limit': 1
+    }, timeout=3)
+    return result.json()[0]
 
 #Units can be 'imperial', 'metric', or 'standard' (i.e. Kelvin)
 def get_open_weather_five_day_forcast(lat, lon, units='imperial'):
@@ -120,7 +128,22 @@ def get_location():
     return location_data
 
 
-def get_openmeteo_weather(lat, lon):
+def get_openmeteo_weather(lat, lon, temp_unit='fahrenheit'):
+    if temp_unit not in ['fahrenheit', 'celsius']:
+        raise ValueError('Unknown Temperature Unit')
+
     cache_session = requests_cache.CachedSession('.cache', expire_after=3600)
     retry_session = retry(cache_session, retries=5, backoff_factor=0.2)
     openmeteo = openmeteo_requests.Client(session=retry_session)
+    url = "https://api.open-meteo.com/v1/forecast"
+    params = {
+        'latitude': lat,
+        'longitude': lon,
+        "current": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation", "rain"],
+        "hourly": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation_probability",
+                   "precipitation"],
+        "daily": ["temperature_2m_max", "temperature_2m_min"],
+        "temperature_unit": temp_unit
+    }
+    response = openmeteo.weather_api(url, params=params)[0]
+    return response
