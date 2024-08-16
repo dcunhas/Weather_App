@@ -8,3 +8,4 @@ usaddress
 pillow
 folium
 openmeteo-requests
+pandas
