@@ -41,12 +41,14 @@ class DarkButton(ui.button):
 @ui.page('/')
 async def weather_page():
     class DailyWeather(ui.card):
-        def __init__(self, date=None, high=None, low=None, *args, **kwargs) -> None:
+        def __init__(self, date=None, high=None, low=None, precipitation=None, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.__enter__()
+            self.classes('bg-info')
             self.date_label = ui.label(date)
             self.high_label = ui.label(high)
             self.low_label = ui.label(low)
+            self.precipitation = ui.label(precipitation)
             self.__exit__()
         def update(self, date=None, high=None, low=None):
             self.__enter__()
@@ -147,13 +149,13 @@ async def weather_page():
                 location_label = ui.label('')
                 set_location_input = ui.input(label='Location').on(
                 'keydown.enter', lambda e: update_weather(e.sender.value))#.on('blur', lambda e: update_weather(e.sender.value))
-                ui.button('Current Location', on_click=on_get_browser_location)
+                ui.button(on_click=on_get_browser_location, icon='location_on')
 
 
     with ui.tabs() as tabs:
         ui.tab('Today')
         ui.tab('Hourly')
-        ui.tab('Three Days')
+        ui.tab('Seven Days')
 
 
     with ui.tab_panels(tabs, value='Today').classes('w-full'):
@@ -201,7 +203,7 @@ async def weather_page():
                         <img src={{ props.value }} >
                     </div>
                 ''')
-        with ui.tab_panel('Three Days'):
+        with ui.tab_panel('Seven Days'):
             with ui.row().classes('no-wrap justify-center') as multi_day_forcast:
                 multi_day_weather_cards = [DailyWeather().classes('col') for i in range(7)]
             with ui.expansion().props('hide-expand-icon') as daily_info_expansion:
@@ -318,7 +320,7 @@ async def weather_page():
         num_days = len(open_meteo_weather['Daily']['Dates'])
         for i, md_weather_card, in zip(range(num_days), multi_day_weather_cards):
             weather_date = open_meteo_weather['Daily']['Dates'][i].astimezone(timezone)
-            md_weather_card.update(date=weather_date.strftime('%a %m/%y'),
+            md_weather_card.update(date=weather_date.strftime('%a %m/%d'),
                                    high=round(open_meteo_weather['Daily']['Max Temperature'][i]),
                                    low=round(open_meteo_weather['Daily']['Min Temperature'][i]))
 
