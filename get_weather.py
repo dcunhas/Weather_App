@@ -9,9 +9,12 @@ import json
 import math
 from PIL import Image
 from io import BytesIO
+import pandas as pd
+from datetime import datetime
 
 open_weather_api_key = os.environ['OPEN_WEATHER_API_KEY']
 open_weather_units = {'F': 'imperial', 'C': 'metric', 'K': 'standard'}
+open_meteo_units =  {'F': 'fahrenheit', 'C': 'celsius'}
 
 async def get_weather(location):
     # declare the client. the measuring unit used defaults to the metric system (celcius, km/h, etc.)
@@ -142,8 +145,20 @@ def get_openmeteo_weather(lat, lon, temp_unit='fahrenheit'):
         "current": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation", "rain"],
         "hourly": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation_probability",
                    "precipitation"],
-        "daily": ["temperature_2m_max", "temperature_2m_min"],
+        "daily": ["temperature_2m_max", "temperature_2m_min", "apparent_temperature_max", "apparent_temperature_min"],
         "temperature_unit": temp_unit
     }
     response = openmeteo.weather_api(url, params=params)[0]
-    return response
+    weather_dict = {}
+    daily = response.Daily()
+    weather_dict['Daily'] = {}
+    weather_dict['Daily']['Max Temperature'] = daily.Variables(0).ValuesAsNumpy().tolist()
+    weather_dict['Daily']['Min Temperature'] = daily.Variables(1).ValuesAsNumpy().tolist()
+    weather_dict['Daily']['Max Apparent Temperature'] = daily.Variables(2).ValuesAsNumpy().tolist()
+    weather_dict['Daily']['Min Apparent Temperature'] = daily.Variables(3).ValuesAsNumpy().tolist()
+    timestamps = pd.date_range(start=pd.to_datetime(daily.Time(), unit='s', utc=True),
+                                                   end=pd.to_datetime(daily.TimeEnd(), unit='s', utc=True),
+                                                   freq=pd.Timedelta(seconds=daily.Interval())).tolist()
+    dates = [ts.to_pydatetime() for ts in timestamps]
+    weather_dict['Daily']['Dates'] = dates
+    return weather_dict

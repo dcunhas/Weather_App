@@ -203,7 +203,7 @@ async def weather_page():
                 ''')
         with ui.tab_panel('Three Days'):
             with ui.row().classes('no-wrap justify-center') as multi_day_forcast:
-                multi_day_weather_cards = [DailyWeather().classes('col') for i in range(5)]
+                multi_day_weather_cards = [DailyWeather().classes('col') for i in range(7)]
             with ui.expansion().props('hide-expand-icon') as daily_info_expansion:
                 ui.label('Weather Info')
 
@@ -270,7 +270,7 @@ async def weather_page():
         try:
             open_weather_current = get_weather.get_open_weather_current_weather(lat, lon, units=get_weather.open_weather_units[temp_scale_selector.value])
             open_weather_five_day = get_weather.get_open_weather_five_day_forcast(lat, lon, units=get_weather.open_weather_units[temp_scale_selector.value])
-            #open_weather_map = get_weather.get_open_weather_map(lat, lon)
+            open_meteo_weather = get_weather.get_openmeteo_weather(lat, lon, get_weather.open_meteo_units[temp_scale_selector.value])
         except HTTPError as e:
             loading_dialog.close()
             request_error_dialog.open()
@@ -285,7 +285,7 @@ async def weather_page():
         last_updated_weather_time = update_time
         last_weather_location = Location(location_string, lat, lon)
         last_weather_unit = temp_scale_selector.value
-        location_label.set_text(f'{open_weather_geocode["name"]} ({lat}{u"\N{DEGREE SIGN}"}N, {lon}{u"\N{DEGREE SIGN}"}E)')
+        location_label.set_text(f'{open_weather_geocode["name"]} ({round(lat, 2)}' + u"\N{DEGREE SIGN}N"+ f', {round(lon, 2)}' + u"\N{DEGREE SIGN}E)")
         today_location.set_text(open_weather_geocode['name'])
         today_image.set_source(f'https://openweathermap.org/img/wn/{open_weather_current["weather"][0]["icon"]}@2x.png')
         today_temp.set_text(str(round(open_weather_current['main'].get('temp', -100))) + u'\N{DEGREE SIGN}')
@@ -301,7 +301,7 @@ async def weather_page():
             'day': datetime.datetime.fromtimestamp(future_forcast.get('dt', ''), tz=timezone).strftime('%a %b %d'),
             'time': datetime.datetime.fromtimestamp(future_forcast.get('dt', ''), tz=timezone).strftime('%I:%M%p'),
             'temperature': str(future_forcast['main'].get('temp', 'NaN')) + u'\N{DEGREE SIGN}',
-            'feels_like': str(future_forcast['main'].get('feels_like', 'NaN')) + u'\N{DEGREE SIGN}',
+            'feels_like': str(future_forcast['main'].get('feels_like+', 'NaN')) + u'\N{DEGREE SIGN}',
             'precipitation': str(round(future_forcast.get('pop', 0) * 100)) + '%',
             'weather_icon': f'https://openweathermap.org/img/wn/{future_forcast["weather"][0]["icon"]}.png'
         }
@@ -315,6 +315,14 @@ async def weather_page():
                             <q-avatar>
                         </q-td>
                     ''')
+        num_days = len(open_meteo_weather['Daily']['Dates'])
+        for i, md_weather_card, in zip(range(num_days), multi_day_weather_cards):
+            weather_date = open_meteo_weather['Daily']['Dates'][i].astimezone(timezone)
+            md_weather_card.update(date=weather_date.strftime('%a %m/%y'),
+                                   high=round(open_meteo_weather['Daily']['Max Temperature'][i]),
+                                   low=round(open_meteo_weather['Daily']['Min Temperature'][i]))
+
+
 
         # for future_forcast, hourly_weather_card in zip(open_weather_five_day['list'], hourly_weather_cards):
         #     hourly_weather_card.update(time=datetime.datetime.fromtimestamp(future_forcast['dt'], tz=timezone).strftime('%I:%M%p %a %b %d'),
