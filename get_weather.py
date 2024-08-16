@@ -162,3 +162,17 @@ def get_openmeteo_weather(lat, lon, temp_unit='fahrenheit'):
     dates = [ts.to_pydatetime() for ts in timestamps]
     weather_dict['Daily']['Dates'] = dates
     return weather_dict
+
+
+def get_weather_gov_weather(lat, lon):
+    response = requests.get(f'https://api.weather.gov/points/{lat},{lon}').json()
+    return response
+
+
+def get_alerts_gov_weather(lat, lon):
+    response = requests.get(f'https://api.weather.gov/alerts/active', {'point': f'{lat},{lon}'}).json()
+    return response
+
+def get_alerts_gov_weather_zone(zone):
+    response = requests.get(f'https://api.weather.gov/alerts/active', {'zone': zone}).json()
+    return response

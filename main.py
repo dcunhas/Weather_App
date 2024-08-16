@@ -5,7 +5,7 @@ import asyncio
 import datetime
 import usaddress
 from requests import HTTPError
-
+import re
 import get_weather
 import mapping
 
@@ -274,6 +274,7 @@ async def weather_page():
             open_weather_five_day = get_weather.get_open_weather_five_day_forcast(lat, lon, units=get_weather.open_weather_units[temp_scale_selector.value])
             open_meteo_weather = get_weather.get_openmeteo_weather(lat, lon, get_weather.open_meteo_units[temp_scale_selector.value])
         except HTTPError as e:
+            print('Weather Data problem')
             loading_dialog.close()
             request_error_dialog.open()
             return
@@ -281,6 +282,28 @@ async def weather_page():
             loading_dialog.close()
             general_error_dialog.open()
             return
+
+        try:
+            gov_weather_alerts = get_weather.get_alerts_gov_weather(lat, lon)
+            gov_weather = get_weather.get_weather_gov_weather(lat, lon)
+            gov_county_link = gov_weather['properties']['county']
+            county_code_match = re.match(r'https://api\.weather\.gov/zones/county/(.*)/?', gov_county_link)
+            if not county_code_match:
+                print('Could not find match from county code url:', gov_county_link)
+            gov_county_code = county_code_match.group(1)
+            gov_weather_alerts_zone = get_weather.get_alerts_gov_weather_zone(gov_county_code)
+        except HTTPError as e:
+            print('Government data problem')
+            loading_dialog.close()
+            request_error_dialog.open()
+            return
+        except Exception:
+            loading_dialog.close()
+            general_error_dialog.open()
+            return
+
+        import json
+        print(gov_weather['properties']['county'])
 
         #new_weather = await get_weather.get_weather(location_string)
         loading_dialog.close()
