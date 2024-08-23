@@ -145,7 +145,8 @@ def get_openmeteo_weather(lat, lon, temp_unit='fahrenheit'):
         "current": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation", "rain"],
         "hourly": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation_probability",
                    "precipitation"],
-        "daily": ["temperature_2m_max", "temperature_2m_min", "apparent_temperature_max", "apparent_temperature_min", "precipitation_probability_max"],
+        "daily": ["temperature_2m_max", "temperature_2m_min", "apparent_temperature_max",
+                  "apparent_temperature_min", "precipitation_probability_max", "weather_code"],
         "temperature_unit": temp_unit
     }
     response = openmeteo.weather_api(url, params=params)[0]
@@ -157,6 +158,7 @@ def get_openmeteo_weather(lat, lon, temp_unit='fahrenheit'):
     weather_dict['Daily']['Max Apparent Temperature'] = daily.Variables(2).ValuesAsNumpy().tolist()
     weather_dict['Daily']['Min Apparent Temperature'] = daily.Variables(3).ValuesAsNumpy().tolist()
     weather_dict['Daily']['Precipitation Chance'] = daily.Variables(4).ValuesAsNumpy().tolist()
+    weather_dict['Daily']['Weather Code'] = daily.Variables(5).ValuesAsNumpy().astype(int).tolist()
     timestamps = pd.date_range(start=pd.to_datetime(daily.Time(), unit='s', utc=True),
                                                    end=pd.to_datetime(daily.TimeEnd(), unit='s', utc=True),
                                                    freq=pd.Timedelta(seconds=daily.Interval())).tolist()
@@ -177,3 +179,36 @@ def get_alerts_gov_weather(lat, lon):
 def get_alerts_gov_weather_zone(zone):
     response = requests.get(f'https://api.weather.gov/alerts/active', {'zone': zone}).json()
     return response
+
+
+#Takes WMO weather numeric code and returns material icon name if available
+weather_code_icon_dict = {
+    0: 'clear-day',
+    1: 'cloudy-1-day',
+    2: 'cloudy-1-day',
+    3: 'cloudy',
+    45: 'fog',
+    48: 'fog',
+    51: 'rainy-1',
+    53: 'rainy-1',
+    55: 'rainy-1',
+    56: 'rain-and-sleet-mix',
+    57: 'rain-and-sleet-mix',
+    61: 'rainy-2',
+    63: 'rainy-2',
+    65: 'rainy-3',
+    66: 'rain-and-sleet-mix',
+    67: 'rain-and-sleet-mix',
+    71: 'snowy-1',
+    73: 'snowy-2',
+    75: 'snowy-3',
+    77: 'snowy-1',
+    80: 'rainy-3',
+    81: 'rainy-3',
+    82: 'rainy-3',
+    85: 'snowy-3',
+    86: 'snowy-3',
+    95: 'thunderstorms',
+    96: 'hail',
+    99: 'hail'
+}

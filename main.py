@@ -9,6 +9,8 @@ import re
 import get_weather
 import mapping
 
+app.add_static_files('/weather_icons', 'icons/makin_things_icons')
+
 class Location():
     def __init__(self, name, lat, lon):
         self.name = name
@@ -41,22 +43,26 @@ class DarkButton(ui.button):
 @ui.page('/')
 async def weather_page():
     class DailyWeather(ui.card):
-        def __init__(self, date=None, high=None, low=None, precipitation=None, *args, **kwargs) -> None:
+        def __init__(self, date=None, high=None, low=None, precipitation=None, icon=None, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.__enter__()
-            self.classes('bg-info').style('height: 150px;')
+            self.classes('bg-info').style('height: 200px;')
             with ui.column().classes('divide-y full-width'):
-                self.date_label = ui.label(date)
-                with ui.card().tight().style('display: inline-block;'):
-                    self.high_label = ui.label(high).classes('text-h6').style('display: inline-block; vertical-align: top; margin-top: 3px;')
-                    ui.label('\N{SOLIDUS}').style('display: inline-block; font-size: 50px; vertical-align: top; margin-top: -15px; margin-right: -5px; margin-left:-5px')
-                    self.low_label = ui.label(low).classes('').style('display: inline-block; vertical-align: bottom;  margin-bottom: 10px')
+                with ui.row():
+                    self.icon = ui.icon(icon).classes('text-7xl').style('margin-left:-5px; margin-right: -5px;')
+                    with ui.card().tight().style('display: inline-block;'):
+                        self.high_label = ui.label(high).classes('text-h6').style('display: inline-block; vertical-align: top; margin-top: 3px;')
+                        ui.label('\N{SOLIDUS}').style('display: inline-block; font-size: 50px; vertical-align: top; margin-top: -15px; margin-right: -5px; margin-left:-5px')
+                        self.low_label = ui.label(low).classes('').style('display: inline-block; vertical-align: bottom;  margin-bottom: 10px')
                 with ui.row().classes('full-width'):
                     ui.icon('water_drop')
                     self.precipitation = ui.label(precipitation)
+                with ui.row().classes('full-width'):
+                    self.date_label = ui.label(date).classes('text-overline')
+
 
             self.__exit__()
-        def update(self, date=None, high=None, low=None, precipitation=None):
+        def update(self, date=None, high=None, low=None, precipitation=None, icon=None):
             self.__enter__()
             if date:
                 self.date_label.set_text(date)
@@ -66,6 +72,8 @@ async def weather_page():
                 self.low_label.set_text(low)
             if precipitation:
                 self.precipitation.set_text(precipitation)
+            if icon:
+                self.icon.set_name(icon)
             self.__exit__()
 
     class HourlyWeather(ui.row):
@@ -142,21 +150,21 @@ async def weather_page():
     with ui.header() as header:
         with ui.row().classes('w-full') as header_row_1:
             ui.button(on_click=lambda: left_drawer.toggle(), icon='menu').props('flat color=white')
-            with ui.link(target='/'):
-                ui.label('Weather Stuff')
-            ui.space()
-            # temp_scale_selector = ui.toggle(
-            #     {'F': u'\N{DEGREE SIGN}F', 'C': u'\N{DEGREE SIGN}C'}, value=app.storage.browser.get('temp_scale', 'F'),
-            temp_scale_selector = ui.toggle(
-                {'F': u'\N{DEGREE SIGN}F', 'C': u'\N{DEGREE SIGN}C'}, value='F',
-                on_change=on_temp_scale_toggle).props('rounded color="dark" toggle-color="positive"')
-            DarkButton().classes('float-right')
+            with ui.link(target='/').classes('justify-left'):
+                ui.label('Weather Stuff').classes('text-h3')
+            #ui.space()
+            set_location_input = ui.input(label='Location').on(
+                'keydown.enter',
+                lambda e: update_weather(e.sender.value))  # .on('blur', lambda e: update_weather(e.sender.value))
+            ui.button(on_click=on_get_browser_location, icon='location_on').props('round color=accent')
+            #ui.space()
+            with ui.html().classes('justify-center'):
+                temp_scale_selector = ui.toggle(
+                    {'F': u'\N{DEGREE SIGN}F', 'C': u'\N{DEGREE SIGN}C'}, value='F',
+                    on_change=on_temp_scale_toggle).props('rounded color="dark" toggle-color="positive"')
+                DarkButton().classes('justify-right')
         with ui.row().classes('w-full') as header_row_2:
             with ui.column() as location_div:
-                with ui.row():
-                    set_location_input = ui.input(label='Location').on(
-                    'keydown.enter', lambda e: update_weather(e.sender.value))#.on('blur', lambda e: update_weather(e.sender.value))
-                    ui.button(on_click=on_get_browser_location, icon='location_on').props('round color=accent')
                 with ui.row():
                     ui.label('Location: ')
                     location_label = ui.label('')
@@ -275,7 +283,8 @@ async def weather_page():
                 loading_dialog.close()
                 request_error_dialog.open()
                 return
-            except Exception:
+            except Exception as e:
+                print(e)
                 loading_dialog.close()
                 general_error_dialog.open()
                 return
@@ -289,7 +298,8 @@ async def weather_page():
             loading_dialog.close()
             request_error_dialog.open()
             return
-        except Exception:
+        except Exception as e:
+            print(e)
             loading_dialog.close()
             general_error_dialog.open()
             return
@@ -308,14 +318,11 @@ async def weather_page():
             loading_dialog.close()
             request_error_dialog.open()
             return
-        except Exception:
+        except Exception as e:
+            print(e)
             loading_dialog.close()
             general_error_dialog.open()
             return
-
-        import json
-        print(gov_weather['properties']['county'])
-
         #new_weather = await get_weather.get_weather(location_string)
         loading_dialog.close()
         last_updated_weather_time = update_time
@@ -357,7 +364,8 @@ async def weather_page():
             md_weather_card.update(date=weather_date.strftime('%a %m/%d'),
                                    high=str(round(open_meteo_weather['Daily']['Max Temperature'][i])) + '\N{DEGREE SIGN}',
                                    low=str(round(open_meteo_weather['Daily']['Min Temperature'][i])) + '\N{DEGREE SIGN}',
-                                   precipitation=str(round(open_meteo_weather['Daily']['Min Temperature'][i])) + '%')
+                                   precipitation=str(round(open_meteo_weather['Daily']['Min Temperature'][i])) + '%',
+                                   icon=f'img:weather_icons/{get_weather.weather_code_icon_dict[open_meteo_weather['Daily']['Weather Code'][i]]}.svg')
 
 
 
@@ -370,7 +378,6 @@ async def weather_page():
         #today_weather_map.set_source(open_weather_map)
         # for (daily_weather, daily_weather_card) in zip(new_weather.daily_forecasts, multi_day_weather_cards):
         #     daily_weather_card.update(date=daily_weather.date, high=daily_weather.highest_temperature, low=daily_weather.lowest_temperature)
-
     await weather_from_rough_location()
     # with ui.table(title='Ten Day Forcast',
     #               columns=[{'name': 'day', 'label': '', 'field': 'day'},
