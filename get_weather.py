@@ -145,7 +145,7 @@ def get_openmeteo_weather(lat, lon, temp_unit='fahrenheit'):
         "current": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation", "rain"],
         "hourly": ["temperature_2m", "relative_humidity_2m", "apparent_temperature", "precipitation_probability",
                    "precipitation"],
-        "daily": ["temperature_2m_max", "temperature_2m_min", "apparent_temperature_max", "apparent_temperature_min"],
+        "daily": ["temperature_2m_max", "temperature_2m_min", "apparent_temperature_max", "apparent_temperature_min", "precipitation_probability_max"],
         "temperature_unit": temp_unit
     }
     response = openmeteo.weather_api(url, params=params)[0]
@@ -156,6 +156,7 @@ def get_openmeteo_weather(lat, lon, temp_unit='fahrenheit'):
     weather_dict['Daily']['Min Temperature'] = daily.Variables(1).ValuesAsNumpy().tolist()
     weather_dict['Daily']['Max Apparent Temperature'] = daily.Variables(2).ValuesAsNumpy().tolist()
     weather_dict['Daily']['Min Apparent Temperature'] = daily.Variables(3).ValuesAsNumpy().tolist()
+    weather_dict['Daily']['Precipitation Chance'] = daily.Variables(4).ValuesAsNumpy().tolist()
     timestamps = pd.date_range(start=pd.to_datetime(daily.Time(), unit='s', utc=True),
                                                    end=pd.to_datetime(daily.TimeEnd(), unit='s', utc=True),
                                                    freq=pd.Timedelta(seconds=daily.Interval())).tolist()

@@ -44,13 +44,19 @@ async def weather_page():
         def __init__(self, date=None, high=None, low=None, precipitation=None, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.__enter__()
-            self.classes('bg-info')
-            self.date_label = ui.label(date)
-            self.high_label = ui.label(high)
-            self.low_label = ui.label(low)
-            self.precipitation = ui.label(precipitation)
+            self.classes('bg-info').style('height: 150px;')
+            with ui.column().classes('divide-y full-width'):
+                self.date_label = ui.label(date)
+                with ui.card().tight().style('display: inline-block;'):
+                    self.high_label = ui.label(high).classes('text-h6').style('display: inline-block; vertical-align: top; margin-top: 3px;')
+                    ui.label('\N{SOLIDUS}').style('display: inline-block; font-size: 50px; vertical-align: top; margin-top: -15px; margin-right: -5px; margin-left:-5px')
+                    self.low_label = ui.label(low).classes('').style('display: inline-block; vertical-align: bottom;  margin-bottom: 10px')
+                with ui.row().classes('full-width'):
+                    ui.icon('water_drop')
+                    self.precipitation = ui.label(precipitation)
+
             self.__exit__()
-        def update(self, date=None, high=None, low=None):
+        def update(self, date=None, high=None, low=None, precipitation=None):
             self.__enter__()
             if date:
                 self.date_label.set_text(date)
@@ -58,6 +64,8 @@ async def weather_page():
                 self.high_label.set_text(high)
             if low:
                 self.low_label.set_text(low)
+            if precipitation:
+                self.precipitation.set_text(precipitation)
             self.__exit__()
 
     class HourlyWeather(ui.row):
@@ -144,12 +152,14 @@ async def weather_page():
                 on_change=on_temp_scale_toggle).props('rounded color="dark" toggle-color="positive"')
             DarkButton().classes('float-right')
         with ui.row().classes('w-full') as header_row_2:
-            with ui.row() as location_div:
-                ui.label('Location: ')
-                location_label = ui.label('')
-                set_location_input = ui.input(label='Location').on(
-                'keydown.enter', lambda e: update_weather(e.sender.value))#.on('blur', lambda e: update_weather(e.sender.value))
-                ui.button(on_click=on_get_browser_location, icon='location_on')
+            with ui.column() as location_div:
+                with ui.row():
+                    set_location_input = ui.input(label='Location').on(
+                    'keydown.enter', lambda e: update_weather(e.sender.value))#.on('blur', lambda e: update_weather(e.sender.value))
+                    ui.button(on_click=on_get_browser_location, icon='location_on').props('round color=accent')
+                with ui.row():
+                    ui.label('Location: ')
+                    location_label = ui.label('')
 
 
     with ui.tabs() as tabs:
@@ -173,6 +183,7 @@ async def weather_page():
                             today_humidity = ui.label('')
                         with ui.row().classes(' full-width'):
                             ui.label('Precipitation')
+                            ui.icon('water_drop')
                             ui.space()
                             today_precipitation = ui.label('')
                         with ui.row().classes(' full-width'):
@@ -204,7 +215,7 @@ async def weather_page():
                     </div>
                 ''')
         with ui.tab_panel('Seven Days'):
-            with ui.row().classes('no-wrap justify-center') as multi_day_forcast:
+            with ui.row().classes('no-wrap flex justify-center') as multi_day_forcast:
                 multi_day_weather_cards = [DailyWeather().classes('col') for i in range(7)]
             with ui.expansion().props('hide-expand-icon') as daily_info_expansion:
                 ui.label('Weather Info')
@@ -344,8 +355,9 @@ async def weather_page():
         for i, md_weather_card, in zip(range(num_days), multi_day_weather_cards):
             weather_date = open_meteo_weather['Daily']['Dates'][i].astimezone(timezone)
             md_weather_card.update(date=weather_date.strftime('%a %m/%d'),
-                                   high=round(open_meteo_weather['Daily']['Max Temperature'][i]),
-                                   low=round(open_meteo_weather['Daily']['Min Temperature'][i]))
+                                   high=str(round(open_meteo_weather['Daily']['Max Temperature'][i])) + '\N{DEGREE SIGN}',
+                                   low=str(round(open_meteo_weather['Daily']['Min Temperature'][i])) + '\N{DEGREE SIGN}',
+                                   precipitation=str(round(open_meteo_weather['Daily']['Min Temperature'][i])) + '%')
 
 
 
