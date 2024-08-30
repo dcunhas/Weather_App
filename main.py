@@ -46,11 +46,11 @@ async def weather_page():
         def __init__(self, date=None, high=None, low=None, precipitation=None, icon=None, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.__enter__()
-            self.classes('bg-info').style('height: 200px;')
-            with ui.column().classes('divide-y full-width'):
+            self.classes('bg-info').style('height: 200px; width:90px;').default_classes(remove='col')
+            with ui.element().classes('divide-y full-width').style('flex-shrink: 0;'):
                 with ui.row():
-                    self.icon = ui.icon(icon).classes('text-7xl').style('margin-left:-5px; margin-right: -5px;')
-                    with ui.card().tight().style('display: inline-block;'):
+                    self.icon = ui.icon(icon).classes('text-7xl').style('margin-left:-20px; display: inline-block;')
+                    with ui.card().tight().style('display: inline-block; position:absolute; margin-left:45px'):
                         self.high_label = ui.label(high).classes('text-h6').style('display: inline-block; vertical-align: top; margin-top: 3px;')
                         ui.label('\N{SOLIDUS}').style('display: inline-block; font-size: 50px; vertical-align: top; margin-top: -15px; margin-right: -5px; margin-left:-5px')
                         self.low_label = ui.label(low).classes('').style('display: inline-block; vertical-align: bottom;  margin-bottom: 10px')
@@ -190,8 +190,9 @@ async def weather_page():
                             ui.space()
                             today_humidity = ui.label('')
                         with ui.row().classes(' full-width'):
-                            ui.label('Precipitation')
-                            ui.icon('water_drop')
+                            with ui.element():
+                                ui.label('Precipitation').style('display:inline;')
+                                ui.icon('water_drop')
                             ui.space()
                             today_precipitation = ui.label('')
                         with ui.row().classes(' full-width'):
@@ -217,11 +218,11 @@ async def weather_page():
                     {'name': 'feels_like', 'label': 'Feels Like', 'field': 'feels_like'},
                 ]
                 hourly_weather_table = ui.table(columns=hourly_weather_columns, rows=[])
-                hourly_weather_table.add_slot('weather_icon', r'''
-                    <div :props="props">
-                        <img src={{ props.value }} >
-                    </div>
-                ''')
+                # hourly_weather_table.add_slot('weather_icon', r'''
+                #                     <q-td key="weather_icon" :props="props">
+                #                         <img :src="props.row.weather_icon" >
+                #                     </q-td>
+                #                 ''')
         with ui.tab_panel('Seven Days'):
             with ui.row().classes('no-wrap flex justify-center') as multi_day_forcast:
                 multi_day_weather_cards = [DailyWeather().classes('col') for i in range(7)]
@@ -351,11 +352,11 @@ async def weather_page():
            for i, future_forcast in zip(range(len(open_weather_five_day['list'])), open_weather_five_day['list'])]
         hourly_weather_table.clear()
         hourly_weather_table.update_rows(hourly_weather_rows)
-        hourly_weather_table.add_slot('icon', r'''
+        hourly_weather_table.add_slot('body-cell-weather_icon', r'''
                         <q-td key="weather_icon" :props="props">
-                            <q-avatar>
-                                <img :src={{ props.row.weather_icon }}>
-                            <q-avatar>
+                            <div>
+                                <q-img :src="https://openweathermap.org/img/wn/04d.png"/>
+                            </div>
                         </q-td>
                     ''')
         num_days = len(open_meteo_weather['Daily']['Dates'])
@@ -365,7 +366,7 @@ async def weather_page():
                                    high=str(round(open_meteo_weather['Daily']['Max Temperature'][i])) + '\N{DEGREE SIGN}',
                                    low=str(round(open_meteo_weather['Daily']['Min Temperature'][i])) + '\N{DEGREE SIGN}',
                                    precipitation=str(round(open_meteo_weather['Daily']['Min Temperature'][i])) + '%',
-                                   icon=f'img:weather_icons/{get_weather.weather_code_icon_dict[open_meteo_weather['Daily']['Weather Code'][i]]}.svg')
+                                   icon=f'img:weather_icons/{get_weather.weather_code_icon_dict[open_meteo_weather["Daily"]["Weather Code"][i]]}.svg')
 
 
 
