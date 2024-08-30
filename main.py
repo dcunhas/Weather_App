@@ -46,11 +46,11 @@ async def weather_page():
         def __init__(self, date=None, high=None, low=None, precipitation=None, icon=None, *args, **kwargs) -> None:
             super().__init__(*args, **kwargs)
             self.__enter__()
-            self.classes('bg-info').style('height: 200px; width:90px;').default_classes(remove='col')
-            with ui.element().classes('divide-y full-width').style('flex-shrink: 0;'):
-                with ui.row():
-                    self.icon = ui.icon(icon).classes('text-7xl').style('margin-left:-20px; display: inline-block;')
-                    with ui.card().tight().style('display: inline-block; position:absolute; margin-left:45px'):
+            self.classes('bg-info').style('height: 100%; flex: 0 0 10em; flex-direction: row;')
+            with ui.element().classes('divide-y'):#.style('flex-shrink: 0;'):
+                with ui.row().classes('full-width').style('white-space:nowrap;'):
+                    self.icon = ui.icon(icon).classes('text-7xl').style('margin-left:-15px; display: inline-block;')
+                    with ui.card().tight().style('display: inline-block; position:absolute; margin-left:45px; white-space: nowrap;'):
                         self.high_label = ui.label(high).classes('text-h6').style('display: inline-block; vertical-align: top; margin-top: 3px;')
                         ui.label('\N{SOLIDUS}').style('display: inline-block; font-size: 50px; vertical-align: top; margin-top: -15px; margin-right: -5px; margin-left:-5px')
                         self.low_label = ui.label(low).classes('').style('display: inline-block; vertical-align: bottom;  margin-bottom: 10px')
@@ -178,6 +178,8 @@ async def weather_page():
 
     with ui.tab_panels(tabs, value='Today').classes('w-full'):
         with ui.tab_panel('Today'):
+            ui.label('test')
+            ui.label('end test')
             with ui.grid(columns='1fr 2fr'):
                 with ui.card().classes('bg-info'):
                     today_location = ui.label('').classes('text-overline')
@@ -214,18 +216,27 @@ async def weather_page():
                     {'name': 'time', 'label': 'Time', 'field': 'time'},
                     {'name': 'weather_icon', 'label': 'Weather', 'field': 'weather_icon'},
                     {'name': 'temperature', 'label': 'Temperature', 'field': 'temperature'},
-                    {'name': 'precipitation', 'label': 'Precipitation', 'field': 'precipitation'},
                     {'name': 'feels_like', 'label': 'Feels Like', 'field': 'feels_like'},
+                    {'name': 'precipitation', 'label': 'Precipitation', 'field': 'precipitation'},
+                    {'name': 'humidity', 'label': 'Humidity', 'field': 'humidity'},
                 ]
                 hourly_weather_table = ui.table(columns=hourly_weather_columns, rows=[])
-                # hourly_weather_table.add_slot('weather_icon', r'''
-                #                     <q-td key="weather_icon" :props="props">
-                #                         <img :src="props.row.weather_icon" >
-                #                     </q-td>
-                #                 ''')
+                hourly_weather_table.add_slot('body-cell-weather_icon', r'''
+                                        <q-td key="weather_icon" :props="props">
+                                            <div>
+                                                <img :src="props.row.weather_icon"/> 
+                                            </div>
+                                        </q-td>
+                                    ''')
+            hourly_weather_table.add_slot('body-cell-precipitation', r'''
+                                                    <q-td key="precipitation" :props="props">
+                                                        {{ props.row.precipitation }}
+                                                        <q-icon name="water_drop"/>
+                                                    </q-td>
+                                                ''')
         with ui.tab_panel('Seven Days'):
-            with ui.row().classes('no-wrap flex justify-center') as multi_day_forcast:
-                multi_day_weather_cards = [DailyWeather().classes('col') for i in range(7)]
+            with ui.row().classes('no-wrap flex full-width') as multi_day_forcast:
+                multi_day_weather_cards = [DailyWeather() for i in range(7)]
             with ui.expansion().props('hide-expand-icon') as daily_info_expansion:
                 ui.label('Weather Info')
 
@@ -344,21 +355,15 @@ async def weather_page():
             'id': i,
             'day': datetime.datetime.fromtimestamp(future_forcast.get('dt', ''), tz=timezone).strftime('%a %b %d'),
             'time': datetime.datetime.fromtimestamp(future_forcast.get('dt', ''), tz=timezone).strftime('%I:%M%p'),
-            'temperature': str(future_forcast['main'].get('temp', 'NaN')) + u'\N{DEGREE SIGN}',
-            'feels_like': str(future_forcast['main'].get('feels_like+', 'NaN')) + u'\N{DEGREE SIGN}',
-            'precipitation': str(round(future_forcast.get('pop', 0) * 100)) + '%',
-            'weather_icon': f'https://openweathermap.org/img/wn/{future_forcast["weather"][0]["icon"]}.png'
+            'temperature': str(round(future_forcast['main']['temp'])) + u'\N{DEGREE SIGN}' if 'temp' in future_forcast['main'] else 'NaN',
+            'feels_like': str(round(future_forcast['main']['feels_like'])) + u'\N{DEGREE SIGN}' if 'feels_like' in future_forcast['main'] else 'NaN',
+            'precipitation': str(round(future_forcast['pop'] * 100)) + '%' if 'pop' in future_forcast else 'NaN',
+            'weather_icon': f'https://openweathermap.org/img/wn/{future_forcast["weather"][0]["icon"]}.png',
+            'humidity': str(round(future_forcast['main']['humidity'])) + '%' if 'humidity' in future_forcast['main'] else 'NaN',
         }
            for i, future_forcast in zip(range(len(open_weather_five_day['list'])), open_weather_five_day['list'])]
         hourly_weather_table.clear()
         hourly_weather_table.update_rows(hourly_weather_rows)
-        hourly_weather_table.add_slot('body-cell-weather_icon', r'''
-                        <q-td key="weather_icon" :props="props">
-                            <div>
-                                <q-img :src="https://openweathermap.org/img/wn/04d.png"/>
-                            </div>
-                        </q-td>
-                    ''')
         num_days = len(open_meteo_weather['Daily']['Dates'])
         for i, md_weather_card, in zip(range(num_days), multi_day_weather_cards):
             weather_date = open_meteo_weather['Daily']['Dates'][i].astimezone(timezone)
