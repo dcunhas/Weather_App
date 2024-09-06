@@ -10,6 +10,7 @@ import get_weather
 import mapping
 
 app.add_static_files('/weather_icons', 'icons/makin_things_icons')
+ui.colors(primary='#555')
 
 class Location():
     def __init__(self, name, lat, lon):
@@ -54,10 +55,10 @@ async def weather_page():
                         self.high_label = ui.label(high).classes('text-h6').style('display: inline-block; vertical-align: top; margin-top: 3px;')
                         ui.label('\N{SOLIDUS}').style('display: inline-block; font-size: 50px; vertical-align: top; margin-top: -15px; margin-right: -5px; margin-left:-5px')
                         self.low_label = ui.label(low).classes('').style('display: inline-block; vertical-align: bottom;  margin-bottom: 10px')
-                with ui.row().classes('full-width'):
+                with ui.row().style('width: 7.7em'):
                     ui.icon('water_drop')
                     self.precipitation = ui.label(precipitation)
-                with ui.row().classes('full-width'):
+                with ui.row().style('width: 7.7em'):
                     self.date_label = ui.label(date).classes('text-overline')
 
 
@@ -130,7 +131,8 @@ async def weather_page():
         await update_weather(lat_lon=(lat, lon))
 
     async def on_temp_scale_toggle():
-        await update_weather(set_location_input.value)
+        print('toggled temp scale')
+        await update_weather(use_previous_location=True)
         #app.storage.browser['temp_scale'] = temp_scale_selector.value
 
     async def weather_from_rough_location():
@@ -153,11 +155,11 @@ async def weather_page():
             with ui.link(target='/').classes('justify-left').style('text-decoration: none; '):
                 ui.label('Weather Stuff').classes('text-h3')
             #ui.space()
-            with ui.element('div').classes('absolute-center'):
+            with ui.element('div').classes('absolute-center').style('display: flex; align-items: flex-start;'):
                 set_location_input = ui.input(label='Location').on(
                     'keydown.enter',
                     lambda e: update_weather(e.sender.value))# .on('blur', lambda e: update_weather(e.sender.value))
-                ui.button(on_click=on_get_browser_location, icon='location_on').props('round dense color=accent size="sm"')
+                ui.button(on_click=on_get_browser_location, icon='location_on').props('round dense color=accent size="sm"').style('margin-top: 1.5em')
             #ui.space()
             with ui.element('div').classes('absolute-right').style('margin-top: 1em; margin-right: 1em'):
                 temp_scale_selector = ui.toggle(
@@ -255,20 +257,28 @@ async def weather_page():
     last_updated_weather_time = None
     last_weather_location = None
     last_weather_unit = temp_scale_selector.value
-    async def update_weather(location_string='', place_name='', state_name='', country_name='', zip_code='', lat_lon=None):
-        if not (location_string.strip() or place_name or state_name or country_name or zip_code or lat_lon):
+    async def update_weather(location_string='', place_name='', state_name='', country_name='', zip_code='', lat_lon=None, use_previous_location=False):
+        if not (use_previous_location or location_string.strip() or place_name or state_name or country_name or zip_code or lat_lon):
             return
         #Don't update if updated recently with same query
         nonlocal last_updated_weather_time, last_weather_location, last_weather_unit
         update_time = datetime.datetime.now()
-        if (last_weather_location and
+        if (not use_previous_location and
+                last_weather_location and
                 (last_weather_location.name == location_string) and
                 last_updated_weather_time and
                 (last_updated_weather_time - update_time) < datetime.timedelta(seconds=10) and
                 last_weather_unit == temp_scale_selector.value):
             return
         loading_dialog.open()
-        if lat_lon:
+        if use_previous_location:
+            if last_weather_location is None:
+                return
+            (lat, lon) = (last_weather_location.lat, last_weather_location.lon)
+            open_weather_geocode = get_weather.get_open_weather_reverse_geocode(lat, lon)
+            print(open_weather_geocode)
+        elif lat_lon:
+            print('lat lon')
             (lat, lon) = lat_lon
             if last_weather_location and (last_weather_location.lat == lat) and \
                     (last_weather_location.lon == lon):
