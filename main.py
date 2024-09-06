@@ -149,16 +149,17 @@ async def weather_page():
 
     with ui.header() as header:
         with ui.row().classes('w-full') as header_row_1:
-            ui.button(on_click=lambda: left_drawer.toggle(), icon='menu').props('flat color=white')
-            with ui.link(target='/').classes('justify-left'):
+            #ui.button(on_click=lambda: left_drawer.toggle(), icon='menu').props('flat color=white')
+            with ui.link(target='/').classes('justify-left').style('text-decoration: none; '):
                 ui.label('Weather Stuff').classes('text-h3')
             #ui.space()
-            set_location_input = ui.input(label='Location').on(
-                'keydown.enter',
-                lambda e: update_weather(e.sender.value))  # .on('blur', lambda e: update_weather(e.sender.value))
-            ui.button(on_click=on_get_browser_location, icon='location_on').props('round color=accent')
+            with ui.element('div').classes('absolute-center'):
+                set_location_input = ui.input(label='Location').on(
+                    'keydown.enter',
+                    lambda e: update_weather(e.sender.value))# .on('blur', lambda e: update_weather(e.sender.value))
+                ui.button(on_click=on_get_browser_location, icon='location_on').props('round dense color=accent size="sm"')
             #ui.space()
-            with ui.html().classes('justify-center'):
+            with ui.element('div').classes('absolute-right').style('margin-top: 1em; margin-right: 1em'):
                 temp_scale_selector = ui.toggle(
                     {'F': u'\N{DEGREE SIGN}F', 'C': u'\N{DEGREE SIGN}C'}, value='F',
                     on_change=on_temp_scale_toggle).props('rounded color="dark" toggle-color="positive"')
@@ -178,8 +179,6 @@ async def weather_page():
 
     with ui.tab_panels(tabs, value='Today').classes('w-full'):
         with ui.tab_panel('Today'):
-            ui.label('test')
-            ui.label('end test')
             with ui.grid(columns='1fr 2fr'):
                 with ui.card().classes('bg-info'):
                     today_location = ui.label('').classes('text-overline')
