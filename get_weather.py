@@ -50,14 +50,12 @@ def get_open_weather_geocode(tagged_location):
 
 def get_open_weather_reverse_geocode(lat, lon):
     print(lat, lon)
-    result = requests.get('http://api.openweathermap.org/geo/1.0/zip', {
+    result = requests.get('http://api.openweathermap.org/geo/1.0/reverse', {
         'lat': lat,
         'lon': lon,
         'appid': open_weather_api_key,
         'limit': 1
     }, timeout=3)
-    print(result)
-    print(result.json())
     return result.json()[0]
 
 #Units can be 'imperial', 'metric', or 'standard' (i.e. Kelvin)
