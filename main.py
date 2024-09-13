@@ -1,7 +1,6 @@
 import math
 
-from nicegui import Tailwind, ui, app
-import asyncio
+from nicegui import  ui, app
 import datetime
 import usaddress
 from requests import HTTPError
@@ -344,7 +343,6 @@ async def weather_page():
             loading_dialog.close()
             general_error_dialog.open()
             return
-        #new_weather = await get_weather.get_weather(location_string)
         loading_dialog.close()
         last_updated_weather_time = update_time
         last_weather_location = Location(location_string, lat, lon)
